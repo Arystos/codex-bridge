@@ -1,14 +1,32 @@
 import { execFile } from "node:child_process";
 import { AuthExpiredError, NetworkError, CliNotFoundError } from "../errors/errors.js";
+import { getCachedBinaryPath } from "./check-binary.js";
+
+const AUTH_CACHE_TTL_MS = 60_000;
+
+let authCachedAt: number | null = null;
+
+export function resetAuthCache(): void {
+  authCachedAt = null;
+}
 
 export async function checkAuth(): Promise<void> {
+  const now = Date.now();
+
+  if (authCachedAt !== null && now - authCachedAt < AUTH_CACHE_TTL_MS) {
+    return;
+  }
+
+  const binary = getCachedBinaryPath() ?? "codex";
+
   return new Promise((resolve, reject) => {
     const child = execFile(
-      "codex",
+      binary,
       ["exec", "--sandbox", "read-only", "--skip-git-repo-check", "--ephemeral", "echo ok"],
       { timeout: 15_000 },
       (error, _stdout, stderr) => {
         if (!error) {
+          authCachedAt = Date.now();
           resolve();
           return;
         }

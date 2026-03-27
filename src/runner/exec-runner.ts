@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
-import which from "which";
 import { BRIDGE_DEPTH_ENV, DEFAULT_TIMEOUT_MS, TIMEOUT_ENV } from "../config/constants.js";
 import { getNextDepth } from "../guards/check-recursion.js";
+import { getCachedBinaryPath } from "../guards/check-binary.js";
 import { setupTimeout } from "./timeout.js";
 import { parseCodexOutput, type CodexResult } from "./output-parser.js";
 import {
@@ -54,17 +54,12 @@ function classifyError(exitCode: number, stderr: string): BridgeError {
   );
 }
 
-async function resolveCodexBinary(): Promise<string> {
-  try {
-    return await which("codex");
-  } catch {
+export async function execCodex(params: ExecParams): Promise<CodexResult> {
+  // Use cached binary path from checkBinary — throws if not found
+  const codexPath = getCachedBinaryPath();
+  if (codexPath === null) {
     throw new CliNotFoundError();
   }
-}
-
-export async function execCodex(params: ExecParams): Promise<CodexResult> {
-  // Resolve the full binary path — no shell needed
-  const codexPath = await resolveCodexBinary();
 
   return new Promise((resolve, reject) => {
     const timeoutMs = getTimeout(params.timeoutMs);
@@ -98,11 +93,11 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
 
     const { clear: clearTimeout_, promise: timeoutPromise } = setupTimeout(child, timeoutMs);
 
-    let stdout = "";
+    const stdoutChunks: Buffer[] = [];
     let stderr = "";
 
     child.stdout?.on("data", (chunk: Buffer) => {
-      stdout += chunk.toString();
+      stdoutChunks.push(chunk);
     });
 
     child.stderr?.on("data", (chunk: Buffer) => {
@@ -115,6 +110,7 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
 
     const onClose = (exitCode: number | null): void => {
       clearTimeout_();
+      const stdout = Buffer.concat(stdoutChunks).toString();
 
       if (exitCode === 0 || exitCode === null) {
         try {
