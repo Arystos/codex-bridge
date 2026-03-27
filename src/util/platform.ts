@@ -13,13 +13,6 @@ export function isWindows(): boolean {
   return getPlatform() === "win32";
 }
 
-export function getShell(): string {
-  if (isWindows()) {
-    return process.env["COMSPEC"] ?? "cmd.exe";
-  }
-  return process.env["SHELL"] ?? "/bin/bash";
-}
-
 export function normalizePath(p: string): string {
   return p.replace(/\\/g, "/");
 }

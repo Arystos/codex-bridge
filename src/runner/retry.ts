@@ -46,8 +46,9 @@ export async function withRetry<T>(
       const isRetryable = err instanceof Error && shouldRetry(err);
       if (attempt < maxRetries && isRetryable) {
         const delay = getDelay(attempt);
+        const errorName = err instanceof Error ? err.constructor.name : "UnknownError";
         process.stderr.write(
-          `[skill-codex] Transient error (attempt ${attempt + 1}/${maxRetries}), retrying in ${delay}ms...\n`,
+          `[skill-codex] ${errorName} (attempt ${attempt + 1}/${maxRetries}), retrying in ${delay}ms...\n`,
         );
         await sleep(delay);
         continue;
