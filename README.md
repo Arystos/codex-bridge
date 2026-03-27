@@ -1,6 +1,7 @@
 # skill-codex
 
 ![npm](https://img.shields.io/npm/v/skill-codex)
+![CI](https://github.com/Arystos/skill-codex/actions/workflows/ci.yml/badge.svg)
 ![Windows](https://img.shields.io/badge/Windows-0078D4?style=flat&logo=windows&logoColor=white)
 ![macOS](https://img.shields.io/badge/macOS-000000?style=flat&logo=apple&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat&logo=linux&logoColor=black)
@@ -64,6 +65,26 @@ The MCP server spawns `codex exec` as a subprocess, using your logged-in Codex s
 ### Auto-review
 
 After significant code changes (3+ files, 100+ lines, security-related paths), the PostToolUse hook suggests running `/codex-review`. Trivial changes (docs-only, < 5 lines, whitespace) are skipped to preserve your Codex quota.
+
+### Example: `/codex-review`
+
+```
+> /codex-review
+
+Reviewing uncommitted changes (3 files, ~85 lines)...
+
+Codex found 2 issues:
+
+CRITICAL — src/auth/login.ts:42
+Password comparison uses == instead of timing-safe comparison.
+Claude's assessment: Agree. Use crypto.timingSafeEqual() instead.
+
+MEDIUM — src/api/routes.ts:18
+Missing rate limiting on login endpoint.
+Claude's assessment: Agree. Add rate limiter middleware.
+
+Shall I fix these issues?
+```
 
 ## Configuration
 
