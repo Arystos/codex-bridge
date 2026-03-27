@@ -8,7 +8,7 @@ function log(icon: string, message: string): void {
 }
 
 export async function runSetup(options: { force?: boolean } = {}): Promise<boolean> {
-  log(">>", "codex-bridge setup\n");
+  log(">>", "skill-codex setup\n");
 
   // Step 1: Install MCP server
   log("  ", "Registering MCP server...");
@@ -43,20 +43,20 @@ export async function runSetup(options: { force?: boolean } = {}): Promise<boole
     log("  ", "  /codex-do        - Delegate a task to Codex");
     log("  ", "  /codex-consult   - Get a second opinion from Codex");
     log("", "");
-    log("  ", "Tip: Add .codex-bridge.lock to your .gitignore");
+    log("  ", "Tip: Add .skill-codex.lock to your .gitignore");
   } else {
-    log("[!!]", "Setup completed with warnings. Fix the issues above and run: npx codex-bridge verify\n");
+    log("[!!]", "Setup completed with warnings. Fix the issues above and run: npx skill-codex verify\n");
   }
 
   return verification.allPassed;
 }
 
 export async function runUninstall(): Promise<void> {
-  log(">>", "codex-bridge uninstall\n");
+  log(">>", "skill-codex uninstall\n");
   log("  ", "To fully uninstall:");
-  log("  ", "1. Run: claude mcp remove codex-bridge");
+  log("  ", "1. Run: claude mcp remove skill-codex");
   log("  ", "2. Delete ~/.claude/commands/codex-review.md");
   log("  ", "3. Delete ~/.claude/commands/codex-do.md");
   log("  ", "4. Delete ~/.claude/commands/codex-consult.md");
-  log("  ", "5. Remove the codex-bridge PostToolUse hook from ~/.claude/settings.json");
+  log("  ", "5. Remove the skill-codex PostToolUse hook from ~/.claude/settings.json");
 }

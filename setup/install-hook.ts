@@ -85,7 +85,7 @@ export function installHook(): {
 
   // Check if already registered (search in nested hooks array)
   const alreadyExists = existingHooks.some((h) =>
-    h.hooks?.some((inner) => inner.command.includes("codex-bridge")),
+    h.hooks?.some((inner) => inner.command.includes("skill-codex")),
   );
   if (alreadyExists) {
     return {

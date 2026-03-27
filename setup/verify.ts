@@ -39,7 +39,7 @@ export async function runVerification(): Promise<{
     try {
       const raw = fs.readFileSync(mcpPath, "utf-8");
       const config = JSON.parse(raw);
-      mcpRegistered = "codex-bridge" in (config.mcpServers ?? {});
+      mcpRegistered = "skill-codex" in (config.mcpServers ?? {});
     } catch {
       // Parse error
     }

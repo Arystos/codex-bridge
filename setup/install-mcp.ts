@@ -36,7 +36,7 @@ export function installMcp(options: { force?: boolean } = {}): {
 
   // Check if already registered
   const servers = config.mcpServers ?? {};
-  if ("codex-bridge" in servers && !options.force) {
+  if ("skill-codex" in servers && !options.force) {
     return {
       installed: false,
       configPath,
@@ -51,7 +51,7 @@ export function installMcp(options: { force?: boolean } = {}): {
     ...config,
     mcpServers: {
       ...servers,
-      "codex-bridge": {
+      "skill-codex": {
         command: "node",
         args: [entryPath],
         env: {},

@@ -1,4 +1,4 @@
-# codex-bridge: PostToolUse hook for auto-review suggestions (Windows PowerShell)
+# skill-codex: PostToolUse hook for auto-review suggestions (Windows PowerShell)
 # Triggered after Write/Edit tool usage in Claude Code
 
 $input = $input | ConvertFrom-Json -ErrorAction SilentlyContinue
@@ -10,7 +10,7 @@ if ($toolName -notin @("Write", "Edit", "MultiEdit", "NotebookEdit")) {
 }
 
 # Skip if inside a bridge call
-if ($env:CODEX_BRIDGE_DEPTH) {
+if ($env:SKILL_CODEX_DEPTH) {
     exit 0
 }
 
@@ -42,9 +42,9 @@ foreach ($keyword in $keywords) {
 
 # Suggest review
 if ($securityHit) {
-    Write-Output "[codex-bridge] Security-sensitive files modified. Consider running /codex-review before committing."
+    Write-Output "[skill-codex] Security-sensitive files modified. Consider running /codex-review before committing."
 } elseif ($changedCount -ge 3 -or $totalLines -ge 100) {
-    Write-Output "[codex-bridge] Significant changes detected ($changedCount files, ~$totalLines lines). Consider running /codex-review."
+    Write-Output "[skill-codex] Significant changes detected ($changedCount files, ~$totalLines lines). Consider running /codex-review."
 }
 
 exit 0

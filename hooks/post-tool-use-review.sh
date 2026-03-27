@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# codex-bridge: PostToolUse hook for auto-review suggestions
+# skill-codex: PostToolUse hook for auto-review suggestions
 # Triggered after Write/Edit tool usage in Claude Code
 # Outputs a suggestion for Claude to consider — does NOT auto-call MCP
 
@@ -14,7 +14,7 @@ case "$TOOL_NAME" in
 esac
 
 # Skip if we're already inside a bridge call (prevent recursion)
-if [ -n "$CODEX_BRIDGE_DEPTH" ]; then
+if [ -n "$SKILL_CODEX_DEPTH" ]; then
   exit 0
 fi
 
@@ -41,9 +41,9 @@ done
 
 # Decide whether to suggest review
 if [ -n "$SECURITY_HIT" ]; then
-  echo "[codex-bridge] Security-sensitive files modified. Consider running /codex-review before committing."
+  echo "[skill-codex] Security-sensitive files modified. Consider running /codex-review before committing."
 elif [ "$CHANGED_COUNT" -ge 3 ] || [ "$TOTAL_LINES" -ge 100 ]; then
-  echo "[codex-bridge] Significant changes detected ($CHANGED_COUNT files, ~$TOTAL_LINES lines). Consider running /codex-review."
+  echo "[skill-codex] Significant changes detected ($CHANGED_COUNT files, ~$TOTAL_LINES lines). Consider running /codex-review."
 fi
 
 exit 0
