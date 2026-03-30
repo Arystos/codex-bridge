@@ -60,7 +60,12 @@ describe("runPreflight", () => {
 
     expect(mockCheckRecursion).toHaveBeenCalledOnce();
     expect(mockCheckBinary).toHaveBeenCalledOnce();
-    expect(mockCheckAuth).toHaveBeenCalledOnce();
+    // Auth check is skipped on Windows (process.platform === "win32")
+    if (process.platform !== "win32") {
+      expect(mockCheckAuth).toHaveBeenCalledOnce();
+    } else {
+      expect(mockCheckAuth).not.toHaveBeenCalled();
+    }
     expect(mockCheckLock).toHaveBeenCalledWith("/tmp");
     expect(result.lockHandle).toBe(lockHandle);
   });

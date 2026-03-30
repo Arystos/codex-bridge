@@ -28,7 +28,9 @@ export async function runPreflight(
   await checkBinary();
 
   // 3. Auth valid (spawns a quick process)
-  if (!options.skipAuth) {
+  // Skipped on Windows: execFile auth check fails due to PowerShell profile
+  // errors causing false AuthExpiredError. The real execCodex handles auth.
+  if (!options.skipAuth && process.platform !== "win32") {
     await checkAuth();
   }
 

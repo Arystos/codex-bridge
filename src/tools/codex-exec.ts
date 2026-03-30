@@ -5,6 +5,7 @@ import { runPreflight } from "../guards/preflight.js";
 import { execCodex } from "../runner/exec-runner.js";
 import { withRetry } from "../runner/retry.js";
 import { BridgeError } from "../errors/errors.js";
+import type { CodexResult } from "../runner/output-parser.js";
 
 export const TOOL_NAME = "codex_exec";
 
@@ -32,6 +33,43 @@ function formatError(err: unknown): string {
     return `[skill-codex error] ${err.message}`;
   }
   return `[skill-codex error] Unknown error: ${String(err)}`;
+}
+
+function formatRichResponse(
+  result: CodexResult,
+  input: CodexExecInput,
+  cwd: string,
+): string {
+  const lines: string[] = [];
+
+  const modeLabel = input.mode === "full-auto" ? "full-auto" : "read-only";
+  const metaParts: string[] = [modeLabel, cwd];
+
+  if (result.usage) {
+    const { input_tokens: inp, output_tokens: out, cached_input_tokens: cached } = result.usage;
+    metaParts.push(
+      `${inp} tok in${cached > 0 ? ` (${cached} cached)` : ""} \u2192 ${out} out`,
+    );
+  }
+
+  lines.push(`[${metaParts.join(" \u2502 ")}]`);
+
+  if (result.activity.length > 0) {
+    for (const a of result.activity) {
+      if (a.type === "exec") {
+        lines.push(`  ${a.icon} exec: ${a.command}  (${a.status})`);
+      } else if (a.type === "read") {
+        lines.push(`  \u25B6 read: ${a.path}`);
+      } else if (a.type === "write") {
+        lines.push(`  \u270E write: ${a.path}`);
+      }
+    }
+  }
+
+  lines.push("");
+  lines.push(result.content);
+
+  return lines.join("\n");
 }
 
 export async function handleCodexExec(
@@ -67,8 +105,9 @@ export async function handleCodexExec(
       }),
     );
 
+    const formatted = formatRichResponse(result, input, cwd);
     return {
-      content: [{ type: "text", text: result.content }],
+      content: [{ type: "text", text: formatted }],
     };
   } catch (err) {
     return {

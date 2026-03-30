@@ -82,12 +82,12 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
       [BRIDGE_DEPTH_ENV]: String(getNextDepth()),
     };
 
-    // shell: false — codexPath is the resolved absolute path, no shell resolution needed
+    // On Windows, npm-installed CLIs are .cmd shims that require a shell to execute.
     const child = spawn(codexPath, args, {
       cwd: params.cwd,
       env,
       stdio: ["pipe", "pipe", "pipe"],
-      shell: false,
+      shell: process.platform === "win32",
       windowsHide: true,
     });
 

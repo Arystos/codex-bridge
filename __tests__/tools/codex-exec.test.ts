@@ -35,11 +35,11 @@ describe("handleCodexExec", () => {
     vi.clearAllMocks();
 
     mockRunPreflight.mockResolvedValue({ lockHandle: makeLockHandle() });
-    mockExecCodex.mockResolvedValue({ content: "Review complete", raw: "" });
+    mockExecCodex.mockResolvedValue({ content: "Review complete", activity: [], usage: null, raw: "" });
   });
 
   it("returns content on success", async () => {
-    mockExecCodex.mockResolvedValue({ content: "Review complete", raw: "" });
+    mockExecCodex.mockResolvedValue({ content: "Review complete", activity: [], usage: null, raw: "" });
 
     const result = await handleCodexExec(
       { prompt: "review this", mode: "exec", requireGit: false },
@@ -47,7 +47,9 @@ describe("handleCodexExec", () => {
     );
 
     expect(result.isError).toBeFalsy();
-    expect(result.content[0].text).toBe("Review complete");
+    // Response is wrapped in formatRichResponse with metadata header
+    expect(result.content[0].text).toContain("Review complete");
+    expect(result.content[0].text).toContain("[read-only");
   });
 
   it("returns error for invalid cwd", async () => {

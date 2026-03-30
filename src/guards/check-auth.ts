@@ -23,7 +23,7 @@ export async function checkAuth(): Promise<void> {
     const child = execFile(
       binary,
       ["exec", "--sandbox", "read-only", "--skip-git-repo-check", "--ephemeral", "echo ok"],
-      { timeout: 15_000 },
+      { timeout: 30_000, shell: process.platform === "win32" },
       (error, _stdout, stderr) => {
         if (!error) {
           authCachedAt = Date.now();

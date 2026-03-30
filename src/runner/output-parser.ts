@@ -1,8 +1,24 @@
 import { EmptyOutputError } from "../errors/errors.js";
 import { truncateResponse } from "../util/truncate.js";
 
+export interface ActivityEntry {
+  readonly type: "exec" | "read" | "write";
+  readonly command?: string;
+  readonly path?: string;
+  readonly icon: string;
+  readonly status: string;
+}
+
+export interface TokenUsage {
+  readonly input_tokens: number;
+  readonly cached_input_tokens: number;
+  readonly output_tokens: number;
+}
+
 export interface CodexResult {
   readonly content: string;
+  readonly activity: ActivityEntry[];
+  readonly usage: TokenUsage | null;
   readonly raw: string;
 }
 
@@ -13,11 +29,23 @@ export function parseCodexOutput(raw: string): CodexResult {
 
   const lines = raw.split("\n").filter((line) => line.trim());
   const messages: string[] = [];
+  const activity: ActivityEntry[] = [];
   let resultContent: string | null = null;
+  let usage: TokenUsage | null = null;
 
   for (const line of lines) {
     try {
       const parsed = JSON.parse(line);
+
+      // Extract token usage from turn.completed events
+      if (parsed.type === "turn.completed" && parsed.usage) {
+        usage = {
+          input_tokens: parsed.usage.input_tokens ?? 0,
+          cached_input_tokens: parsed.usage.cached_input_tokens ?? 0,
+          output_tokens: parsed.usage.output_tokens ?? 0,
+        };
+        continue;
+      }
 
       // Handle result type — takes priority over all other messages
       if (parsed.type === "result" && typeof parsed.content === "string") {
@@ -31,6 +59,41 @@ export function parseCodexOutput(raw: string): CodexResult {
         continue;
       }
 
+      // Track command executions
+      if (parsed.item?.type === "command_execution") {
+        const cmd = parsed.item;
+        const shortCmd =
+          cmd.command?.length > 80
+            ? cmd.command.slice(0, 77) + "..."
+            : cmd.command;
+        const statusIcon =
+          cmd.status === "declined"
+            ? "\u2718"
+            : cmd.exit_code === 0
+              ? "\u2714"
+              : cmd.exit_code !== null
+                ? "\u2718"
+                : "\u25B6";
+        const statusLabel =
+          cmd.status === "declined"
+            ? "blocked"
+            : cmd.status === "in_progress"
+              ? "running"
+              : cmd.exit_code === 0
+                ? "ok"
+                : `exit ${cmd.exit_code}`;
+        // Only record completed/declined events, not in_progress starts
+        if (cmd.status !== "in_progress") {
+          activity.push({
+            type: "exec",
+            command: shortCmd,
+            icon: statusIcon,
+            status: statusLabel,
+          });
+        }
+        continue;
+      }
+
       // Handle nested item format (Codex JSONL)
       if (parsed.item?.type === "agent_message" && typeof parsed.item.text === "string") {
         messages.push(parsed.item.text);
@@ -40,6 +103,28 @@ export function parseCodexOutput(raw: string): CodexResult {
       // Handle flat legacy format
       if (parsed.itemType === "agent_message" && typeof parsed.text === "string") {
         messages.push(parsed.text);
+        continue;
+      }
+
+      // Track file reads
+      if (parsed.item?.type === "file_read") {
+        activity.push({
+          type: "read",
+          path: parsed.item.path || "file",
+          icon: "\u25B6",
+          status: "read",
+        });
+        continue;
+      }
+
+      // Track file writes/edits
+      if (parsed.item?.type === "file_write" || parsed.item?.type === "file_edit") {
+        activity.push({
+          type: "write",
+          path: parsed.item.path || "file",
+          icon: "\u270E",
+          status: "write",
+        });
         continue;
       }
     } catch {
@@ -56,7 +141,10 @@ export function parseCodexOutput(raw: string): CodexResult {
   } else {
     // If no structured output found, use the raw text (minus any obvious preamble)
     const substantiveLines = lines.filter(
-      (line) => !line.startsWith("OpenAI Codex") && !line.startsWith("---") && !line.startsWith("tokens used"),
+      (line) =>
+        !line.startsWith("OpenAI Codex") &&
+        !line.startsWith("---") &&
+        !line.startsWith("tokens used"),
     );
     agentMessage = substantiveLines.join("\n").trim();
   }
@@ -67,6 +155,8 @@ export function parseCodexOutput(raw: string): CodexResult {
 
   return {
     content: truncateResponse(agentMessage),
+    activity,
+    usage,
     raw,
   };
 }
