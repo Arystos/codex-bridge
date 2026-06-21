@@ -35,6 +35,30 @@ export interface LoadedCase extends BugCase {
 }
 
 /**
+ * The ONLY view a Reviewer is given of a case. Deliberately excludes every
+ * ground-truth/answer-key field of {@link BugCase} (`bug`, `category`, `title`,
+ * `correctReviewShouldFlag`, `expectedSignals`, `locationSignals`, `line`,
+ * `minSignalHits`) so a reviewer — including a custom one — *cannot* grade with
+ * the answer key. It sees only the diff (and `file`/`id`, which are already
+ * derivable from the diff headers). This enforces the honesty contract
+ * structurally rather than by convention.
+ */
+export interface ReviewerInput {
+  readonly id: string;
+  readonly file: string;
+  readonly diffText: string;
+}
+
+/** Project a LoadedCase down to the answer-key-free view a Reviewer may see. */
+export function toReviewerInput(loadedCase: LoadedCase): ReviewerInput {
+  return Object.freeze({
+    id: loadedCase.id,
+    file: loadedCase.file,
+    diffText: loadedCase.diffText,
+  });
+}
+
+/**
  * A reviewer's verdict on a single diff. This is the only contract a reviewer
  * must satisfy — the mock reviewer and the live (Codex/Claude) reviewer both
  * return this shape, so the harness is agnostic to how the review was produced.

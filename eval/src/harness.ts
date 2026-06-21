@@ -1,4 +1,5 @@
 import { gradeCase } from "./matcher.js";
+import { toReviewerInput } from "./types.js";
 import type { LoadedCase, ModeResult, CaseOutcome } from "./types.js";
 import type { Reviewer } from "./reviewers/types.js";
 
@@ -35,7 +36,7 @@ async function runSequential(
   const outcomes: CaseOutcome[] = [];
   for (let i = 0; i < corpus.length; i++) {
     const loadedCase = corpus[i];
-    const review = await reviewer(loadedCase);
+    const review = await reviewer(toReviewerInput(loadedCase));
     const outcome = gradeCase(loadedCase, review);
     outcomes.push(outcome);
     onProgress?.(outcome, i, corpus.length);
@@ -48,7 +49,9 @@ async function runParallel(
   reviewer: Reviewer,
   onProgress: RunOptions["onProgress"],
 ): Promise<CaseOutcome[]> {
-  const reviews = await Promise.all(corpus.map((c) => reviewer(c)));
+  const reviews = await Promise.all(
+    corpus.map((c) => reviewer(toReviewerInput(c))),
+  );
   return corpus.map((loadedCase, i) => {
     const outcome = gradeCase(loadedCase, reviews[i]);
     onProgress?.(outcome, i, corpus.length);
@@ -72,7 +75,7 @@ export async function runMode(
 
   // Probe the reviewer identity from the first case without double-running it:
   // we run the first case, capture identity, then run the rest.
-  const firstReview = await reviewer(corpus[0]);
+  const firstReview = await reviewer(toReviewerInput(corpus[0]));
   const reviewerId = firstReview.reviewer;
   const firstOutcome = gradeCase(corpus[0], firstReview);
   options.onProgress?.(firstOutcome, 0, corpus.length);

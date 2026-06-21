@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import type { LoadedCase, ReviewOutput } from "../types.js";
+import type { ReviewerInput, ReviewOutput } from "../types.js";
 import type { Reviewer } from "./types.js";
 
 /**
@@ -27,10 +27,10 @@ import type { Reviewer } from "./types.js";
  */
 
 /** The default reviewer: refuses to run, with guidance. Never spends money. */
-export const notConfiguredReviewer: Reviewer = async (loadedCase) => {
+export const notConfiguredReviewer: Reviewer = async (input) => {
   throw new Error(
     [
-      `No live reviewer is configured (case "${loadedCase.id}").`,
+      `No live reviewer is configured (case "${input.id}").`,
       "",
       "This is intentional: the eval will not make paid model/CLI calls on its own.",
       "To get real numbers, configure a live reviewer — see eval/README.md.",
@@ -65,35 +65,68 @@ const DEFAULT_PROMPT_PREFIX =
 
 const DEFAULT_TIMEOUT_MS = 300_000;
 
+/**
+ * Best-effort termination of a (possibly nested) child. On Windows we spawn the
+ * reviewer through the shell, so `child` is `cmd.exe` and the real CLI is a
+ * grandchild — SIGTERM on the shell would orphan it. `taskkill /T` reaps the
+ * whole tree; elsewhere a SIGTERM on the direct child suffices.
+ */
+function killTree(child: ReturnType<typeof spawn>): void {
+  if (process.platform === "win32" && child.pid !== undefined) {
+    try {
+      spawn("taskkill", ["/pid", String(child.pid), "/t", "/f"], {
+        stdio: "ignore",
+      });
+    } catch {
+      child.kill("SIGKILL");
+    }
+  } else {
+    child.kill("SIGTERM");
+  }
+}
+
 /** Run a child process, feeding the diff in, capturing stdout. */
 function runCommand(
   opts: CommandReviewerOptions,
-  loadedCase: LoadedCase,
+  input: ReviewerInput,
 ): Promise<string> {
-  const prompt = `${opts.promptPrefix ?? DEFAULT_PROMPT_PREFIX}\`\`\`diff\n${loadedCase.diffText}\n\`\`\`\n`;
+  const prompt = `${opts.promptPrefix ?? DEFAULT_PROMPT_PREFIX}\`\`\`diff\n${input.diffText}\n\`\`\`\n`;
   const baseArgs = [...(opts.args ?? [])];
   const args =
     opts.mode === "prompt-arg" ? [...baseArgs, prompt] : baseArgs;
 
+  // On Windows we must run through the shell so `.cmd`/`.ps1` CLI shims resolve
+  // (a bare spawn() ENOENTs). But under a shell, args are concatenated WITHOUT
+  // escaping (Node DEP0190), so appending the prompt+diff — full of quotes,
+  // backticks and newlines — as a shell argument is unsafe and corrupts the
+  // command line. Refuse that combination and steer to stdin mode, which pipes
+  // the prompt and sidesteps shell quoting entirely (codex/claude both read it).
+  const useShell = process.platform === "win32";
+  if (useShell && opts.mode === "prompt-arg") {
+    return Promise.reject(
+      new Error(
+        `Live reviewer "${opts.command}": prompt-arg mode is unsafe on Windows ` +
+          `(the prompt would be concatenated into the shell command line unescaped). ` +
+          `Use stdin mode instead — drop REVIEWER_MODE or set it to "stdin"; ` +
+          `codex (\`codex exec\`) and claude (\`claude -p\`) both read the prompt from stdin.`,
+      ),
+    );
+  }
+
   return new Promise<string>((resolvePromise, reject) => {
-    // Windows: `codex`/`claude`/npm CLIs are `.cmd`/`.ps1` shims that a bare
-    // spawn() cannot resolve (ENOENT) — the same trap skill-codex works around
-    // in its own MCP server. Run them through the shell so the shim is found.
-    // Pair this with stdin mode (the default) so the prompt is piped rather than
-    // concatenated unescaped into a shell command line.
     const child = spawn(opts.command, args, {
       stdio: ["pipe", "pipe", "pipe"],
-      shell: process.platform === "win32",
+      shell: useShell,
       windowsHide: true,
     });
 
     let stdout = "";
     let stderr = "";
     const timer = setTimeout(() => {
-      child.kill("SIGTERM");
+      killTree(child);
       reject(
         new Error(
-          `Live reviewer "${opts.command}" timed out after ${opts.timeoutMs ?? DEFAULT_TIMEOUT_MS}ms on case "${loadedCase.id}".`,
+          `Live reviewer "${opts.command}" timed out after ${opts.timeoutMs ?? DEFAULT_TIMEOUT_MS}ms on case "${input.id}".`,
         ),
       );
     }, opts.timeoutMs ?? DEFAULT_TIMEOUT_MS);
@@ -117,7 +150,7 @@ function runCommand(
       if (code !== 0 && !stdout.trim()) {
         reject(
           new Error(
-            `Live reviewer "${opts.command}" exited ${code} with no output on case "${loadedCase.id}".\n${stderr.slice(0, 500)}`,
+            `Live reviewer "${opts.command}" exited ${code} with no output on case "${input.id}".\n${stderr.slice(0, 500)}`,
           ),
         );
         return;
@@ -138,11 +171,11 @@ function runCommand(
  */
 export function makeCommandReviewer(opts: CommandReviewerOptions): Reviewer {
   const reviewerId = opts.reviewer ?? opts.command;
-  return async (loadedCase: LoadedCase): Promise<ReviewOutput> => {
-    const stdout = await runCommand(opts, loadedCase);
+  return async (input: ReviewerInput): Promise<ReviewOutput> => {
+    const stdout = await runCommand(opts, input);
     if (!stdout.trim()) {
       throw new Error(
-        `Live reviewer "${opts.command}" returned empty output on case "${loadedCase.id}".`,
+        `Live reviewer "${opts.command}" returned empty output on case "${input.id}".`,
       );
     }
     return Object.freeze({ text: stdout, reviewer: reviewerId });
@@ -153,6 +186,12 @@ export function makeCommandReviewer(opts: CommandReviewerOptions): Reviewer {
  * Build a reviewer from the REVIEWER_CMD environment variable, if set. The
  * value is split on whitespace; the first token is the command, the rest are
  * fixed args. Returns null when unset, so callers can fall back to the mock.
+ *
+ * Note: the whitespace split is intentionally simple — it does NOT honor quoting
+ * or escaped spaces, so a command path containing spaces (or an arg with an
+ * embedded space) won't parse as one token. Keep REVIEWER_CMD to a bare command
+ * plus simple flags (e.g. `codex exec --sandbox read-only`); for anything richer,
+ * point it at a wrapper script, or build a reviewer in code (see eval/README.md).
  */
 export function commandReviewerFromEnv(env: NodeJS.ProcessEnv = process.env): Reviewer | null {
   const raw = env.REVIEWER_CMD?.trim();

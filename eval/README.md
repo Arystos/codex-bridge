@@ -158,13 +158,15 @@ to the reviewer** — it sees only the diff.
 ```shell
 REVIEWER_CMD='codex exec --sandbox read-only' \
 REVIEWER_ID='codex:gpt-5.5' \
-REVIEWER_MODE='prompt-arg' \
 npm run eval -- --live
 ```
 
-> `REVIEWER_MODE=prompt-arg` appends the prompt+diff as the final CLI arg
-> (what `codex exec` expects); the default `stdin` pipes it instead. Use
-> whichever your CLI wants. Increase `REVIEWER_TIMEOUT_MS` for big diffs.
+> The default `stdin` mode pipes the prompt+diff to the process — `codex exec`
+> and `claude -p` both read instructions from stdin. **Prefer stdin** (and on
+> Windows it's required): the harness runs CLIs through the shell on Windows so
+> `.cmd`/`.ps1` shims resolve, and under a shell a `prompt-arg` would be
+> concatenated into the command line unescaped, so `prompt-arg` + Windows is
+> rejected with guidance. Increase `REVIEWER_TIMEOUT_MS` for big diffs.
 
 **Cross-model — add a *different* family as the candidate:**
 
@@ -173,7 +175,6 @@ npm run eval -- --live
 # out to both and concatenates their reviews — the skill-codex pattern).
 REVIEWER_CMD='codex exec --sandbox read-only'      REVIEWER_ID='codex' \
 REVIEWER_CMD_CROSS='claude -p --output-format text' REVIEWER_ID_CROSS='claude' \
-REVIEWER_MODE='prompt-arg' \
 npm run eval -- --live
 ```
 
@@ -196,9 +197,11 @@ import { runMode } from "./src/harness.js";
 import { scoreMode, compareModes } from "./src/scorer.js";
 import type { Reviewer } from "./src/reviewers/types.js";
 
-const myReviewer: Reviewer = async (c) => {
-  // c.diffText is the ONLY thing you should look at — never c.bug / c.expectedSignals.
-  const text = await callYourModel(c.diffText);
+const myReviewer: Reviewer = async (input) => {
+  // `input` is a ReviewerInput: { id, file, diffText } only. The manifest answer
+  // key (bug, category, expectedSignals, locationSignals…) is structurally
+  // withheld — you literally cannot read it here, so the numbers stay honest.
+  const text = await callYourModel(input.diffText);
   return { text, reviewer: "my-model" };
 };
 
@@ -230,9 +233,10 @@ Read these before quoting any number.
 - **No "clean" controls yet.** Every case contains a bug, so the harness
   measures catch rate, not the false-alarm rate on correct diffs. Adding
   bug-free diffs would let you measure how often a reviewer invents problems.
-- **Reviewer must not see the answer key.** Both shipped reviewers are built to
-  read only the diff. If you write your own, keep that discipline or the numbers
-  are worthless.
+- **Reviewer cannot see the answer key.** Reviewers are handed a `ReviewerInput`
+  (`{ id, file, diffText }`) — the manifest's `bug`/`category`/`expectedSignals`/
+  `locationSignals` are structurally withheld, not merely "please don't peek." So
+  even a custom reviewer can't grade with the answer key.
 
 ## Extending the corpus
 

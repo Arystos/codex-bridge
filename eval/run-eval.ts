@@ -77,8 +77,8 @@ function resolveMockReviewers(): { single: Reviewer; cross: Reviewer } {
   // Cross-model = union of the two models' findings (the skill-codex premise:
   // two different families rarely share a blind spot). We concatenate their
   // review texts so the grader sees whatever EITHER model surfaced.
-  const cross: Reviewer = async (loadedCase) => {
-    const [a, b] = await Promise.all([single(loadedCase), other(loadedCase)]);
+  const cross: Reviewer = async (input) => {
+    const [a, b] = await Promise.all([single(input), other(input)]);
     return Object.freeze({
       text: `${a.text}\n\n--- second reviewer (${b.reviewer}) ---\n\n${b.text}`,
       reviewer: "mock:cross (single+other)",

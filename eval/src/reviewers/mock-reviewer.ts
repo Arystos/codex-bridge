@@ -1,4 +1,4 @@
-import type { LoadedCase, ReviewOutput } from "../types.js";
+import type { ReviewerInput, ReviewOutput } from "../types.js";
 import type { Reviewer } from "./types.js";
 
 /**
@@ -25,7 +25,7 @@ interface HeuristicRule {
   /** Severity label the finding is reported under. */
   readonly severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
   /** The finding sentence. Phrasing aims to hit the manifest signals honestly. */
-  readonly message: (loadedCase: LoadedCase) => string;
+  readonly message: (input: ReviewerInput) => string;
 }
 
 /**
@@ -115,8 +115,8 @@ function deriveVerdict(
 export function makeMockReviewer(config: MockConfig): Reviewer {
   const blind = new Set(config.blindSpots ?? []);
 
-  return async (loadedCase: LoadedCase): Promise<ReviewOutput> => {
-    const added = addedLines(loadedCase.diffText);
+  return async (input: ReviewerInput): Promise<ReviewOutput> => {
+    const added = addedLines(input.diffText);
 
     const findings = RULES.filter(
       (rule) =>
@@ -124,7 +124,7 @@ export function makeMockReviewer(config: MockConfig): Reviewer {
         rule.triggers.some((re) => re.test(added)),
     ).map((rule) => ({
       severity: rule.severity,
-      line: `${rule.severity} — ${loadedCase.file}\n${rule.message(loadedCase)}`,
+      line: `${rule.severity} — ${input.file}\n${rule.message(input)}`,
     }));
 
     const noiseLine = config.addNoise
