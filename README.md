@@ -59,15 +59,16 @@ Because a subagent is the **same model**. When Claude reviews Claude, you inheri
 
 | | skill-codex | Most Codex MCP bridges |
 |---|---|---|
-| Codex **subscription** auth (no `OPENAI_API_KEY`) | ✅ | ⚠️ often require an API key |
 | **Windows** verified in CI (not just "should work") | ✅ 9-way matrix (Windows/macOS/Linux × Node 18/20/22) | ❌ usually Linux-only CI |
+| Works around Codex's **elevated-sandbox spawn bug** (no WSL needed) | ✅ pins `windows.sandbox=unelevated` | ❌ |
 | **Live progress** so long runs never look frozen | ✅ MCP progress + tail-able log | ⚠️ varies |
 | **Slash commands** (`/codex-review`, `/codex-do`, `/codex-consult`) | ✅ | ⚠️ some |
 | **Auto-review hook** (PostToolUse) | ✅ | ❌ |
 | **Agent skill** (auto-triggers, no command needed) | ✅ | ❌ |
 | **Guardrails**: retry, timeout, anti-recursion, lock files | ✅ | ⚠️ partial |
+| Codex **subscription** auth (`codex login`, no `OPENAI_API_KEY`) | ✅ | ✅ table stakes — the official Codex MCP & OpenAI plugin do this too |
 
-*A snapshot, not a leaderboard — the Codex MCP space moves fast, so check each tool's current state. The point isn't "skill-codex wins everything"; it's that the operational details (subscription auth, real Windows support, never-frozen runs, guardrails) are where it focuses.*
+*A snapshot, not a leaderboard — the Codex MCP space moves fast, so check each tool's current state. Subscription auth (no API key) is **table stakes**: the official Codex MCP server and OpenAI's own plugin use your `codex login` too, so it's not a differentiator — it's just reassurance you won't get a metered API bill. Where skill-codex actually focuses is the operational details: real, CI-verified Windows support (incl. the elevated-sandbox bug), never-frozen runs, guardrails, and an act-on-it review workflow.*
 
 ## See it in action
 
