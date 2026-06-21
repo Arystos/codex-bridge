@@ -22,21 +22,28 @@ You are invoking Codex for a second-opinion code review. Follow these steps:
 
    **Option B (native Codex review):** Default to the Claude-assembled diff above, since the user prefers Claude-led review. You may instead call `codex_exec` with `review: true` to use `codex exec review`; add `reviewBase` for a branch or `reviewCommit` for a SHA. The prompt is optional focus instructions.
 
-4. **Assign an overall verdict** from the findings (you are the final judge — weigh Codex's findings, don't just echo them):
-   - **BLOCKED** — one or more CRITICAL/HIGH issues that should be fixed before merge
-   - **WARNING** — only MEDIUM/LOW issues; safe to proceed with awareness
-   - **APPROVED** — no substantive issues
-   State it explicitly, e.g. `Verdict: BLOCKED — 2 CRITICAL, 1 MEDIUM`.
+4. **Audit each finding against the actual code** — do this *before* trusting any of them. Codex flags real issues, but it also misreads code, re-flags established conventions, and misses things. For every finding Codex returned, open the cited file/line and classify it:
+   - **keep** — confirmed real. Quote the exact offending code as evidence.
+   - **rewrite** — a real issue, but Codex got the severity, location, or explanation wrong. Restate it correctly, with evidence.
+   - **drop** — not a real issue. Give a typed reason: `codebase-convention` (matches an established pattern in this repo), `pre-existing` (not introduced by this diff), `cannot-occur` (guarded or impossible in this context), `out-of-scope` (style nit outside the review's focus), or `false-claim` (Codex misread the code).
+   - **new** — a real issue Codex MISSED that you found while auditing. Look past the flagged lines: repeated patterns elsewhere, untouched-but-affected files, broken assumptions. Add it with evidence.
 
-5. **Present findings** to the user:
-   - Group by severity (CRITICAL first)
-   - For each finding, add your own assessment: agree, disagree (with reasoning), or add nuance
-   - Note anything Codex missed that you think is important
-   - Summarize actionable items at the end
+   Anything you `keep`, `rewrite`, or add as `new` must cite concrete code — no finding survives on assertion alone. Only these audited findings carry forward; dropped ones are set aside for step 6.
 
-6. **If BLOCKED or WARNING, offer a bounded fix loop** (only with the user's go-ahead for automated fixing):
-   - Fix the issues you agree are genuine. If you disagree with a finding, explain why instead of "fixing" it just to satisfy Codex.
-   - Re-run the review (call `codex_exec` again on the updated diff) so Codex confirms the fixes and checks for regressions.
+5. **Assign an overall verdict from the AUDITED findings** (the ones that survived step 4 — not Codex's raw output; you are the final judge):
+   - **BLOCKED** — one or more surviving CRITICAL/HIGH issues that should be fixed before merge
+   - **WARNING** — only surviving MEDIUM/LOW issues; safe to proceed with awareness
+   - **APPROVED** — nothing survived the audit
+   State it explicitly, e.g. `Verdict: BLOCKED — 2 CRITICAL, 1 MEDIUM (audited; 3 of Codex's findings dropped)`.
+
+6. **Present findings** to the user:
+   - Surviving findings grouped by severity (CRITICAL first), each with your code evidence and its label (`keep`/`rewrite`/`new`).
+   - A short **"Filtered"** list of the dropped findings with their one-word reason, so the user sees what Codex raised that you set aside and why — transparency, not silent suppression.
+   - Summarize actionable items at the end.
+
+7. **If BLOCKED or WARNING, offer a bounded fix loop** (only with the user's go-ahead for automated fixing):
+   - Fix the surviving issues. (You already filtered the noise in the audit, so you're not "fixing" things just to satisfy Codex.)
+   - Re-run the review (call `codex_exec` again on the updated diff) so Codex confirms the fixes and checks for regressions; audit the new findings the same way.
    - Repeat until the verdict is APPROVED or you have done **3 rounds**, then stop and summarize what remains. The hard cap keeps the loop from quietly burning your Codex quota.
 
 ## Important

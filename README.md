@@ -42,7 +42,7 @@ npx skill-codex setup   # then restart Claude Code
 
 Claude Code and Codex CLI have different strengths. Claude excels at reasoning, architecture, and complex refactors. Codex is fast, thorough, and great at focused execution and review. **skill-codex** lets them work together from a single terminal — no second window, no copy-paste, no context loss.
 
-* **`/codex-review`** — have Codex review your current changes as a second reviewer
+* **`/codex-review`** — Codex reviews your current changes; Claude then audits each finding against the code (keep / rewrite / drop / new, with evidence) before the verdict, so false positives are filtered and missed issues surfaced
 * **`/codex-do`** — delegate well-scoped implementation tasks to Codex
 * **`/codex-consult`** — get a second opinion on architecture or design decisions
 * **`codex-bridge` agent skill** — auto-triggers on implementation/review/consult requests, no command needed
