@@ -1,3 +1,8 @@
+---
+description: Codex reviews your current changes; Claude audits each finding before the verdict
+argument-hint: "[--effort <level>] [--model <name>] [branch|SHA|uncommitted]"
+---
+
 # Codex Code Review
 
 Review the current changes using Codex as a second reviewer.
@@ -5,6 +10,12 @@ Review the current changes using Codex as a second reviewer.
 ## Instructions
 
 You are invoking Codex for a second-opinion code review. Follow these steps:
+
+0. **Extract optional flags from `$ARGUMENTS` first**, then treat the remaining text as the review target:
+   - `--effort <level>` — Codex reasoning effort. Valid: `minimal`, `low`, `medium`, `high`, `xhigh`. If an invalid level is given, list the valid ones and ask — do not guess.
+   - `--model <name>` — Codex model (e.g. `gpt-5.5`, `gpt-5.4-mini`). Passed through as-is.
+   - Strip any flags you find; what's left is the review target parsed in step 1.
+   - **Omitted → default:** if a flag is absent, do NOT pass that parameter to `codex_exec`. Codex falls back to its configured default (`~/.codex/config.toml`). Never invent a value.
 
 1. **Determine what to review** based on `$ARGUMENTS`:
    - If empty or "uncommitted": first run `git status --short` to see ALL changes, including **new untracked files** (lines starting with `??`). Collect tracked modifications via `git diff` and staged changes via `git diff --cached`, **and** include the full contents of any new untracked files — read them directly, or use `git diff --no-index -- /dev/null <file>`. Plain `git diff` is blind to untracked files, so a review that skips this step will miss brand-new files entirely. If there are no changes at all, inform the user and stop.
@@ -19,6 +30,8 @@ You are invoking Codex for a second-opinion code review. Follow these steps:
    - `prompt`: "Review the following code changes. For each finding, specify: severity (CRITICAL/HIGH/MEDIUM/LOW), file and line, description, and suggested fix.\n\nFocus on: bugs, security issues, performance problems, error handling gaps, and readability.\n\n```diff\n<the diff>\n```"
    - `mode`: "exec"
    - `requireGit`: true
+   - `reasoningEffort`: the parsed `--effort` level — **only if provided in step 0** (otherwise omit)
+   - `model`: the parsed `--model` name — **only if provided in step 0** (otherwise omit)
 
    **Option B (native Codex review):** Default to the Claude-assembled diff above, since the user prefers Claude-led review. You may instead call `codex_exec` with `review: true` to use `codex exec review`; add `reviewBase` for a branch or `reviewCommit` for a SHA. The prompt is optional focus instructions.
 

@@ -149,6 +149,8 @@ The skill-codex MCP server exposes exactly one tool: `codex_exec`.
 | `timeoutMs` | number | no | Override default 5min timeout |
 | `requireGit` | boolean | no | Refuse to run if cwd is not a git repo (recommended `true` for `full-auto`) |
 
+**Command flags:** the `/codex-review`, `/codex-do`, and `/codex-consult` commands accept optional `--effort <level>` (`minimal`|`low`|`medium`|`high`|`xhigh`) and `--model <name>` flags in their arguments. Parse and strip them, then pass through as `reasoningEffort` / `model`. Omit either flag to defer to Codex's configured default (`~/.codex/config.toml`) — never invent a value.
+
 **Modes:**
 - `exec` → read-only. Use for review and consult.
 - `full-auto` → can modify files. Use only for delegate, and always with `requireGit: true`.
